@@ -1,0 +1,48 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - release
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  MAVEN_OPTS: "-Xmx1024m"
+
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildJob
+        steps:
+          - task: Maven@3
+            inputs:
+              mavenPomFile: 'pom.xml'
+              goals: 'clean install'
+              javaHomeOption: 'JDKVersion'
+              jdkVersionOption: '17'
+              mavenVersionOption: 'Default'
+              publishJUnitResults: true
+
+  - stage: Test
+    jobs:
+      - job: TestJob
+        steps:
+          - script: echo "Aqui você pode executar testes unitários com Maven"
+            displayName: 'Run Tests'
+
+  - stage: Deploy
+    condition: |
+      or(eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+         eq(variables['Build.SourceBranch'], 'refs/heads/develop'),
+         eq(variables['Build.SourceBranch'], 'refs/heads/release'))
+    jobs:
+      - job: DeployJob
+        steps:
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: '<Seu serviço de conexão>'
+              appType: 'webApp'
+              appName: '<Nome-do-AppService>'
+              package: '$(System.DefaultWorkingDirectory)/target/*.jar'
